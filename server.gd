@@ -19,7 +19,7 @@ func _ready() -> void:
 		return
 
 func start_dedicated_server() -> void:
-	var error := peer.create_server(PORT, "127.0.0.1")
+	var error := peer.create_server(PORT, "0.0.0.0")
 
 	if error != OK:
 		print("Server failed: ", error)
