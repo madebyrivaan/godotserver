@@ -12,5 +12,9 @@ config_version=5
 
 config/name="GodotDedicatedServer-WS"
 run/main_scene="uid://ddftxsrdxufca"
-config/features=PackedStringArray("4.6")
+config/features=PackedStringArray("4.7")
 config/icon="res://icon.svg"
+
+[autoload]
+
+DataBase="*uid://cplv0rf1b5w8u"

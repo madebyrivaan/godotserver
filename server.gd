@@ -4,10 +4,14 @@ var PORT := int(OS.get_environment("PORT")) if OS.has_environment("PORT") else 7
 const MAX_CLIENTS := 10
 
 
-var clients : Array[int] = [];
 var peer := WebSocketMultiplayerPeer.new()
 
+var users : Dictionary = {}
+var players_data : Dictionary = {}
+
 func _ready() -> void:
+	var players = await DataBase.request_data()
+	players_data = players;
 	var args := OS.get_cmdline_user_args()
 
 	if "--server" in args:
@@ -15,8 +19,7 @@ func _ready() -> void:
 		return
 
 func start_dedicated_server() -> void:
-
-	var error := peer.create_server(PORT, "0.0.0.0")
+	var error := peer.create_server(PORT, "127.0.0.1")
 
 	if error != OK:
 		print("Server failed: ", error)
@@ -29,33 +32,31 @@ func start_dedicated_server() -> void:
 
 	print("==============================")
 	print("DEDICATED SERVER ONLINE!")
-	print("Listening on UDP: ", PORT)
+	print("Listening on TCP: ", PORT)
 	print("Maximum clients: ", MAX_CLIENTS)
 	print("==============================")
 
 func _on_peer_connected(id: int) -> void:
-	clients.append(id)
-	update_player_list.rpc(clients)
+	update_player_list.rpc(players_data)
 	print("Client connected: ", id)
-	print("Clients : ", clients)
+	print("Clients : ", players_data)
 
 
 func _on_peer_disconnected(id: int) -> void:
-	clients.erase(id)
-	update_player_list.rpc(clients)
+	update_player_list.rpc(players_data)
 	print("Client disconnected: ", id)
-	print("Clients : ", clients)
+	print("Clients : ", players_data)
 	
 	
 @rpc("any_peer", "call_remote", "reliable")
-func send_message(message: String , receiver : int ) -> void:
-	var sender_id := multiplayer.get_remote_sender_id()
-
-	print("Client ", sender_id, " says: ", message , " to: ", receiver)
-
+func send_message(message: String , username : String ) -> void:
+	var clientid : int = players_data[username]["peerid"];
+	if clientid == 0:
+		return
+	print("clientid",clientid , "user-peer-id",multiplayer.get_unique_id())
 	receive_message.rpc_id(
-		receiver,
-		"Server received: " + message
+		clientid,
+		"msg" + message
 	)
 
 
@@ -64,5 +65,17 @@ func receive_message(message: String) -> void:
 	pass
 
 @rpc("authority", "call_remote", "reliable")
-func update_player_list(player_ids: Array) -> void:
+func update_player_list(player_ids: Dictionary) -> void:
 	pass
+
+@rpc("any_peer", "call_remote", "reliable")
+func login(username_: String, peer_id: int):
+	print("User connected: ", username_)
+
+	var sender_id = multiplayer.get_remote_sender_id()
+
+	if not players_data.has(username_):
+		peer.disconnect_peer(sender_id)
+		return
+
+	players_data[username_]["peerid"] = sender_id
